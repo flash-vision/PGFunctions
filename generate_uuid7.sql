@@ -8,7 +8,7 @@
   Please note that this is a simplified version and may not fully comply with all aspects of the UUID v7 specification:
 
 */
-
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE OR REPLACE FUNCTION generate_uuid_v7()
 RETURNS uuid AS $$
 DECLARE
@@ -22,7 +22,7 @@ BEGIN
     unix_time_ms := EXTRACT(EPOCH FROM clock_timestamp()) * 1000;
 
     -- Generate random node ID (6 bytes) and clock sequence (2 bytes)
-    node_id := SUBSTRING(gen_random_bytes(6) FROM 1 FOR 6);
+    node_id := gen_random_bytes(6);
     clock_seq := (RANDOM() * 65535)::INTEGER;
 
     -- Construct the 60-bit timestamp value and set the version (0111 for v7)
@@ -37,6 +37,10 @@ BEGIN
     uuid_val := uuid_val || SUBSTRING(node_id FROM 4 FOR 3);
 
     -- Convert to UUID
-    RETURN uuid_send(uuid_val);
+    RETURN ('x' || encode(uuid_val, 'hex'))::uuid;
 END;
 $$ LANGUAGE plpgsql VOLATILE;
+
+-- Example usage
+SELECT generate_uuid_v7();
+
