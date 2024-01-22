@@ -57,3 +57,32 @@ $$ LANGUAGE plpgsql VOLATILE;
 -- Example usage
 SELECT generate_uuid_v7();
 
+CREATE OR REPLACE FUNCTION extract_from_custom_uuid(custom_uuid uuid)
+RETURNS TABLE(unix_time_ms BIGINT, node_id BYTEA, clock_seq INTEGER) AS $$
+DECLARE
+    hex_string TEXT;
+    version_and_timestamp BIGINT;
+BEGIN
+    -- Convert UUID to hex string
+    hex_string := replace(custom_uuid::text, '-', '');
+
+    -- Extract the timestamp and version part (first 15 characters / 60 bits)
+    version_and_timestamp := ('x' || left(hex_string, 15))::bit(60)::bigint;
+
+    -- Extract Unix timestamp in milliseconds
+    unix_time_ms := (version_and_timestamp >> 4);
+
+    -- Extract clock sequence (next 4 characters / 16 bits)
+    clock_seq := ('x' || substring(hex_string from 16 for 4))::bit(16)::integer;
+
+    -- Extract node ID (last 12 characters / 48 bits)
+    node_id := decode(right(hex_string, 12), 'hex');
+
+    -- Return the extracted values
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- Example usage
+SELECT * FROM extract_from_custom_uuid('0000adca-07c5-0b50-c56c-c50b50c56ce8');
+
